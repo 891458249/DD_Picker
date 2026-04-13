@@ -445,8 +445,8 @@ class PickerScene(QtWidgets.QGraphicsScene):
 
     def __init__(self, parent: Optional[QtCore.QObject] = None):
         super().__init__(parent)
-        self.setSceneRect(-LOGICAL_WIDTH / 2, -LOGICAL_HEIGHT / 2,
-                          LOGICAL_WIDTH, LOGICAL_HEIGHT)
+        # No fixed sceneRect — allows infinite pan / zoom.
+        # Items define the logical extent; the view is never clamped.
         self._mode: PickerMode = PickerMode.ANIMATION
         self._bg_item: Optional[BackgroundImageItem] = None
 
@@ -527,8 +527,10 @@ class PickerGraphicsView(QtWidgets.QGraphicsView):
             QtWidgets.QGraphicsView.NoAnchor)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setDragMode(QtWidgets.QGraphicsView.NoDrag)
         self.setBackgroundBrush(COL_CANVAS_BG)
-        self.setSceneRect(scene.sceneRect())
+        # Extremely large sceneRect so the view never clamps panning.
+        self.setSceneRect(-1e10, -1e10, 2e10, 2e10)
 
         self._zoom: float = 1.0
         self._panning: bool = False
