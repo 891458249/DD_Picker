@@ -993,6 +993,12 @@ class PickerScene(QtWidgets.QGraphicsScene):
         if pixmap.isNull():
             cmds.warning("DD Picker: failed to load image — " + path)
             return None
+        return self.set_background_pixmap(pixmap)
+
+    def set_background_pixmap(self, pixmap: QtGui.QPixmap) -> Optional[BackgroundImageItem]:
+        """Set a QPixmap directly as the canvas background."""
+        if pixmap.isNull():
+            return None
         self.remove_background_image()
         self._bg_item = BackgroundImageItem(pixmap)
         self._bg_item.set_movable(self._mode == PickerMode.DESIGN)
@@ -1340,6 +1346,12 @@ class DDPickerWindow(MayaQWidgetDockableMixin, QtWidgets.QMainWindow):
         btn_load_bg.clicked.connect(self._on_load_bg)
         bg_row.addWidget(btn_load_bg)
 
+        btn_screenshot_bg = QtWidgets.QPushButton("Screenshot BG")
+        btn_screenshot_bg.setFixedHeight(22)
+        btn_screenshot_bg.setToolTip("Capture Maya viewport as background")
+        btn_screenshot_bg.clicked.connect(self._on_screenshot_bg)
+        bg_row.addWidget(btn_screenshot_bg)
+
         btn_remove_bg = QtWidgets.QPushButton("Remove BG")
         btn_remove_bg.setFixedHeight(22)
         btn_remove_bg.clicked.connect(self._on_remove_bg)
@@ -1387,6 +1399,7 @@ class DDPickerWindow(MayaQWidgetDockableMixin, QtWidgets.QMainWindow):
         # -- File --
         m_file = mb.addMenu("File")
         m_file.addAction("Load Background Image...", self._on_load_bg)
+        m_file.addAction("Screenshot as Background", self._on_screenshot_bg)
         m_file.addAction("Remove Background Image",  self._on_remove_bg)
 
         # -- View --
@@ -1455,6 +1468,103 @@ class DDPickerWindow(MayaQWidgetDockableMixin, QtWidgets.QMainWindow):
             if bg:
                 self._sld_opacity.setValue(50)
                 self._spn_bg_scale.setValue(1.0)
+
+    def _on_screenshot_bg(self) -> None:
+        """Capture the active Maya viewport and use it as the background."""
+        import tempfile
+        import os
+
+        # Choose source
+        sources = ["Active Viewport"]
+        # Check if playblast-based full panel capture is possible
+        panels = cmds.getPanel(visiblePanels=True) or []
+        model_panels = [p for p in panels if cmds.getPanel(typeOf=p) == "modelPanel"]
+        if model_panels:
+            for mp in model_panels:
+                cam = cmds.modelPanel(mp, query=True, camera=True)
+                sources.append("{} ({})".format(mp, cam))
+
+        source, ok = QtWidgets.QInputDialog.getItem(
+            self, "Screenshot Background",
+            "Capture source:",
+            sources, 0, False)
+        if not ok:
+            return
+
+        tmp_dir = tempfile.gettempdir()
+        tmp_path = os.path.join(tmp_dir, "dd_picker_screenshot.png")
+
+        try:
+            if source == "Active Viewport":
+                # Use playblast to capture the active viewport
+                panel = cmds.getPanel(withFocus=True)
+                if not panel or cmds.getPanel(typeOf=panel) != "modelPanel":
+                    # Fall back to first visible modelPanel
+                    if model_panels:
+                        panel = model_panels[0]
+                    else:
+                        self._view._toast.show_message(
+                            "No model panel found")
+                        return
+                cmds.setFocus(panel)
+                result = cmds.playblast(
+                    frame=cmds.currentTime(query=True),
+                    format="image",
+                    compression="png",
+                    quality=100,
+                    widthHeight=[1920, 1080],
+                    showOrnaments=False,
+                    viewer=False,
+                    filename=tmp_path.replace(".png", ""),
+                    completeFilename=tmp_path,
+                    percent=100,
+                    offScreen=True,
+                    clearCache=True,
+                    forceOverwrite=True,
+                )
+            else:
+                # Specific model panel selected
+                chosen_panel = source.split(" (")[0]
+                cmds.setFocus(chosen_panel)
+                result = cmds.playblast(
+                    frame=cmds.currentTime(query=True),
+                    format="image",
+                    compression="png",
+                    quality=100,
+                    widthHeight=[1920, 1080],
+                    showOrnaments=False,
+                    viewer=False,
+                    filename=tmp_path.replace(".png", ""),
+                    completeFilename=tmp_path,
+                    percent=100,
+                    offScreen=True,
+                    clearCache=True,
+                    forceOverwrite=True,
+                )
+
+            if not os.path.isfile(tmp_path):
+                self._view._toast.show_message("Screenshot failed")
+                return
+
+            pixmap = QtGui.QPixmap(tmp_path)
+            if pixmap.isNull():
+                self._view._toast.show_message("Failed to load screenshot")
+                return
+
+            bg = self._scene.set_background_pixmap(pixmap)
+            if bg:
+                self._sld_opacity.setValue(50)
+                self._spn_bg_scale.setValue(1.0)
+
+            # Clean up temp file
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass
+
+        except Exception as exc:
+            self._view._toast.show_message("Screenshot error: {}".format(exc))
+            traceback.print_exc()
 
     def _on_remove_bg(self) -> None:
         self._scene.remove_background_image()
