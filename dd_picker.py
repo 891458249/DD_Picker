@@ -4,8 +4,8 @@ DD Picker - A 2D Picker Control Panel for Maya
 ===============================================
 
 A professional character-picker tool with Design / Animation dual-mode
-workflow, background image support, snap-to-grid, and resolution-independent
-logical coordinates.
+workflow, background image support, snap-to-grid, resolution-independent
+logical coordinates, and full undo/redo support.
 
 Supports Maya 2022+ (Python 3).  Compatible with PySide2 **and** PySide6.
 
@@ -56,7 +56,6 @@ LOGICAL_HEIGHT = 1000.0
 GRID_SIZE = 20
 SNAP_THRESHOLD = GRID_SIZE / 2.0
 
-# Colours
 COL_CANVAS_BG       = QtGui.QColor(42, 42, 42)
 COL_GRID_MINOR      = QtGui.QColor(52, 52, 52)
 COL_GRID_MAJOR      = QtGui.QColor(62, 62, 62)
@@ -84,14 +83,13 @@ class PickerMode(Enum):
 
 
 class ItemShape(Enum):
-    """Shape variant for PickerItem."""
     RECT     = "rect"
     ELLIPSE  = "ellipse"
     POLYGON  = "polygon"
 
 
 # ╔═════════════════════════════════════════════════════════════════════════╗
-# ║  GRID & COORDINATE HELPERS                                             ║
+# ║  HELPERS                                                                ║
 # ╚═════════════════════════════════════════════════════════════════════════╝
 
 def snap_value(value: float, grid: float = GRID_SIZE) -> float:
@@ -103,23 +101,7 @@ def snap_point(point: QtCore.QPointF, grid: float = GRID_SIZE) -> QtCore.QPointF
                           snap_value(point.y(), grid))
 
 
-# ╔═════════════════════════════════════════════════════════════════════════╗
-# ║  NAMESPACE HELPER                                                       ║
-# ╚═════════════════════════════════════════════════════════════════════════╝
-
 def resolve_namespace(node_name: str, namespace: str) -> str:
-    """Prepend *namespace* to a bare node name.
-
-    If *namespace* is empty the name is returned as-is.
-    If the node already contains a namespace it is replaced.
-
-    Examples::
-
-        resolve_namespace("arm_ctrl", "characterA")
-        # → "characterA:arm_ctrl"
-        resolve_namespace("old_ns:arm_ctrl", "characterA")
-        # → "characterA:arm_ctrl"
-    """
     if not namespace:
         return node_name
     base = node_name.rsplit(":", 1)[-1]
@@ -127,12 +109,144 @@ def resolve_namespace(node_name: str, namespace: str) -> str:
 
 
 # ╔═════════════════════════════════════════════════════════════════════════╗
-# ║  TOAST NOTIFICATION  (fade-in / fade-out overlay)                       ║
+# ║  UNDO COMMANDS                                                          ║
+# ╚═════════════════════════════════════════════════════════════════════════╝
+
+class MoveItemCommand(QtWidgets.QUndoCommand):
+    """Undo/redo moving one or more items."""
+
+    def __init__(self, items_and_old_pos: List[tuple], description: str = "Move"):
+        super().__init__(description)
+        # [(item, old_pos_QPointF, new_pos_QPointF), ...]
+        self._data = [(item, QtCore.QPointF(old), QtCore.QPointF(item.pos()))
+                      for item, old in items_and_old_pos]
+
+    def redo(self) -> None:
+        for item, _old, new in self._data:
+            item.setPos(new)
+
+    def undo(self) -> None:
+        for item, old, _new in self._data:
+            item.setPos(old)
+
+
+class ResizeItemCommand(QtWidgets.QUndoCommand):
+    """Undo/redo resizing an item."""
+
+    def __init__(self, item: "PickerItem",
+                 old_w: float, old_h: float,
+                 new_w: float, new_h: float):
+        super().__init__("Resize '{}'".format(item.label))
+        self._item = item
+        self._old_w, self._old_h = old_w, old_h
+        self._new_w, self._new_h = new_w, new_h
+
+    def redo(self) -> None:
+        self._item.resize(self._new_w, self._new_h)
+
+    def undo(self) -> None:
+        self._item.resize(self._old_w, self._old_h)
+
+
+class RotateItemCommand(QtWidgets.QUndoCommand):
+    """Undo/redo rotating an item."""
+
+    def __init__(self, item: "PickerItem",
+                 old_angle: float, new_angle: float):
+        super().__init__("Rotate '{}'".format(item.label))
+        self._item = item
+        self._old = old_angle
+        self._new = new_angle
+
+    def redo(self) -> None:
+        self._item.setRotation(self._new)
+
+    def undo(self) -> None:
+        self._item.setRotation(self._old)
+
+
+class PropertyChangeCommand(QtWidgets.QUndoCommand):
+    """Generic undo/redo for any single property change on a PickerItem."""
+
+    def __init__(self, item: "PickerItem", attr: str,
+                 old_value: Any, new_value: Any, description: str = ""):
+        desc = description or "Change {} on '{}'".format(attr, item.label)
+        super().__init__(desc)
+        self._item = item
+        self._attr = attr
+        self._old = old_value
+        self._new = new_value
+
+    def redo(self) -> None:
+        setattr(self._item, self._attr, self._new)
+        self._item.update()
+
+    def undo(self) -> None:
+        setattr(self._item, self._attr, self._old)
+        self._item.update()
+
+
+class ChangeShapeCommand(QtWidgets.QUndoCommand):
+    """Undo/redo changing shape type (and polygon points)."""
+
+    def __init__(self, item: "PickerItem",
+                 old_shape: ItemShape, old_poly: List[List[float]],
+                 new_shape: ItemShape, new_poly: List[List[float]]):
+        super().__init__("Change shape on '{}'".format(item.label))
+        self._item = item
+        self._old_shape, self._old_poly = old_shape, list(old_poly)
+        self._new_shape, self._new_poly = new_shape, list(new_poly)
+
+    def redo(self) -> None:
+        self._item.prepareGeometryChange()
+        self._item._shape_type = self._new_shape
+        self._item._polygon_points = list(self._new_poly)
+        self._item.update()
+
+    def undo(self) -> None:
+        self._item.prepareGeometryChange()
+        self._item._shape_type = self._old_shape
+        self._item._polygon_points = list(self._old_poly)
+        self._item.update()
+
+
+class AddItemCommand(QtWidgets.QUndoCommand):
+    """Undo/redo adding a PickerItem to the scene."""
+
+    def __init__(self, scene: "PickerScene", item: "PickerItem"):
+        super().__init__("Add '{}'".format(item.label))
+        self._scene = scene
+        self._item = item
+
+    def redo(self) -> None:
+        self._item.set_mode(self._scene.mode)
+        self._scene.addItem(self._item)
+
+    def undo(self) -> None:
+        self._scene.removeItem(self._item)
+
+
+class DeleteItemCommand(QtWidgets.QUndoCommand):
+    """Undo/redo deleting a PickerItem from the scene."""
+
+    def __init__(self, scene: "PickerScene", item: "PickerItem"):
+        super().__init__("Delete '{}'".format(item.label))
+        self._scene = scene
+        self._item = item
+
+    def redo(self) -> None:
+        self._scene.removeItem(self._item)
+
+    def undo(self) -> None:
+        self._item.set_mode(self._scene.mode)
+        self._scene.addItem(self._item)
+
+
+# ╔═════════════════════════════════════════════════════════════════════════╗
+# ║  TOAST NOTIFICATION                                                     ║
 # ╚═════════════════════════════════════════════════════════════════════════╝
 
 class _ToastLabel(QtWidgets.QLabel):
-    """A translucent overlay label that fades in, pauses, then fades out."""
-
     def __init__(self, parent: QtWidgets.QWidget):
         super().__init__(parent)
         self.setAlignment(Qt.AlignCenter)
@@ -161,12 +275,10 @@ class _ToastLabel(QtWidgets.QLabel):
     def show_message(self, text: str, duration_ms: int = 2000) -> None:
         self.setText(text)
         self.adjustSize()
-        # Centre horizontally at bottom of parent
         pw = self.parent().width() if self.parent() else 300
         ph = self.parent().height() if self.parent() else 300
         self.move((pw - self.width()) // 2, ph - self.height() - 20)
         self.setVisible(True)
-        # Fade in
         self._anim.stop()
         self._anim.setStartValue(0.0)
         self._anim.setEndValue(1.0)
@@ -191,7 +303,7 @@ class _ToastLabel(QtWidgets.QLabel):
 
 
 # ╔═════════════════════════════════════════════════════════════════════════╗
-# ║  RESIZE HANDLE  (design-mode only)                                     ║
+# ║  RESIZE HANDLE                                                          ║
 # ╚═════════════════════════════════════════════════════════════════════════╝
 
 class _ResizeHandle(QtWidgets.QGraphicsRectItem):
@@ -208,7 +320,8 @@ class _ResizeHandle(QtWidgets.QGraphicsRectItem):
         self.setAcceptHoverEvents(True)
         self.setVisible(False)
         self._drag_origin = QtCore.QPointF()
-        self._orig_size = QtCore.QSizeF()
+        self._orig_w: float = 0
+        self._orig_h: float = 0
 
     def reposition(self) -> None:
         r = self._parent_item.boundingRect()
@@ -217,16 +330,16 @@ class _ResizeHandle(QtWidgets.QGraphicsRectItem):
     def mousePressEvent(self, event) -> None:
         if event.button() == Qt.LeftButton:
             self._drag_origin = event.scenePos()
-            self._orig_size = QtCore.QSizeF(self._parent_item._width,
-                                            self._parent_item._height)
+            self._orig_w = self._parent_item._width
+            self._orig_h = self._parent_item._height
             event.accept()
         else:
             super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event) -> None:
         delta = event.scenePos() - self._drag_origin
-        new_w = max(20, self._orig_size.width() + delta.x())
-        new_h = max(14, self._orig_size.height() + delta.y())
+        new_w = max(20, self._orig_w + delta.x())
+        new_h = max(14, self._orig_h + delta.y())
         if self._parent_item._snap_enabled:
             new_w = snap_value(new_w)
             new_h = snap_value(new_h)
@@ -234,6 +347,16 @@ class _ResizeHandle(QtWidgets.QGraphicsRectItem):
         event.accept()
 
     def mouseReleaseEvent(self, event) -> None:
+        if event.button() == Qt.LeftButton:
+            new_w = self._parent_item._width
+            new_h = self._parent_item._height
+            if (new_w != self._orig_w or new_h != self._orig_h):
+                stack = self._parent_item._undo_stack()
+                if stack:
+                    stack.push(ResizeItemCommand(
+                        self._parent_item,
+                        self._orig_w, self._orig_h,
+                        new_w, new_h))
         event.accept()
 
 
@@ -244,9 +367,8 @@ class _ResizeHandle(QtWidgets.QGraphicsRectItem):
 class PickerItem(QtWidgets.QGraphicsObject):
     """Core interactive button on the picker canvas.
 
-    Supports three shape variants (rect / ellipse / polygon), Maya node
-    binding with namespace resolution, optional click-command scripts,
-    and an animated hover glow effect.
+    All Design-mode mutations are routed through the scene's QUndoStack
+    so that every change can be undone with Ctrl+Z.
     """
 
     # --- Qt property for glow animation ------------------------------------
@@ -286,16 +408,25 @@ class PickerItem(QtWidgets.QGraphicsObject):
         self._snap_enabled: bool = True
         self._glow_value: float = 0.0
 
+        # Drag tracking for undo
+        self._drag_start_pos: Optional[QtCore.QPointF] = None
+
         self.setAcceptHoverEvents(True)
         self.setFlag(QtWidgets.QGraphicsItem.ItemIsSelectable, True)
         self.setFlag(QtWidgets.QGraphicsItem.ItemSendsGeometryChanges, True)
 
         self._handle = _ResizeHandle(self)
 
-        # Glow animation
         self._glow_anim = QPropertyAnimation(self, b"glow_strength", self)
         self._glow_anim.setDuration(200)
         self._glow_anim.setEasingCurve(QEasingCurve.InOutQuad)
+
+    # ── undo stack accessor ────────────────────────────────────────────────
+    def _undo_stack(self) -> Optional[QtWidgets.QUndoStack]:
+        scene = self.scene()
+        if scene and hasattr(scene, "undo_stack"):
+            return scene.undo_stack
+        return None
 
     # ── properties ─────────────────────────────────────────────────────────
     @property
@@ -335,9 +466,7 @@ class PickerItem(QtWidgets.QGraphicsObject):
     def shape_type(self) -> ItemShape:
         return self._shape_type
 
-    # ── resolved node names (with namespace) ──────────────────────────────
     def resolved_nodes(self) -> List[str]:
-        """Return maya_nodes with the current namespace applied."""
         return [resolve_namespace(n, self._namespace)
                 for n in self._maya_nodes]
 
@@ -358,17 +487,15 @@ class PickerItem(QtWidgets.QGraphicsObject):
         self.update()
 
     def boundingRect(self) -> QtCore.QRectF:
-        pad = 4.0  # room for glow
+        pad = 4.0
         return QtCore.QRectF(-self._width / 2 - pad, -self._height / 2 - pad,
                               self._width + pad * 2, self._height + pad * 2)
 
     def _base_rect(self) -> QtCore.QRectF:
-        """Inner rect without glow padding."""
         return QtCore.QRectF(-self._width / 2, -self._height / 2,
                               self._width, self._height)
 
     def _build_path(self) -> QtGui.QPainterPath:
-        """Build the QPainterPath for the current shape type."""
         p = QtGui.QPainterPath()
         r = self._base_rect()
         if self._shape_type == ItemShape.ELLIPSE:
@@ -393,7 +520,6 @@ class PickerItem(QtWidgets.QGraphicsObject):
         path = self._build_path()
         selected = self.isSelected()
 
-        # ── glow (hover animated outline) ──
         if self._glow_value > 0.01:
             glow_col = QtGui.QColor(COL_GLOW)
             glow_col.setAlphaF(self._glow_value * 0.6)
@@ -403,7 +529,6 @@ class PickerItem(QtWidgets.QGraphicsObject):
             painter.setBrush(Qt.NoBrush)
             painter.drawPath(path)
 
-        # ── fill ──
         if selected:
             bg = COL_ITEM_SELECTED
         elif self._hover:
@@ -411,7 +536,6 @@ class PickerItem(QtWidgets.QGraphicsObject):
         else:
             bg = COL_ITEM_DEFAULT
 
-        # ── border ──
         if selected:
             border, pw = COL_BORDER_SELECTED, 2.0
         elif self._hover:
@@ -423,7 +547,6 @@ class PickerItem(QtWidgets.QGraphicsObject):
         painter.setBrush(bg)
         painter.drawPath(path)
 
-        # ── label ──
         painter.setPen(COL_TEXT_SELECTED if selected else COL_TEXT_DEFAULT)
         font = painter.font()
         font.setPointSize(9)
@@ -431,14 +554,13 @@ class PickerItem(QtWidgets.QGraphicsObject):
         painter.setFont(font)
         painter.drawText(self._base_rect(), Qt.AlignCenter, self._label)
 
-        # ── design-mode dash ──
         if self._mode == PickerMode.DESIGN:
             painter.setPen(QtGui.QPen(QtGui.QColor(120, 200, 255, 60),
                                        0.5, Qt.DashLine))
             painter.setBrush(Qt.NoBrush)
             painter.drawRect(self._base_rect())
 
-    # ── hover events (glow animation) ─────────────────────────────────────
+    # ── hover events ───────────────────────────────────────────────────────
     def hoverEnterEvent(self, event) -> None:
         self._hover = True
         self._glow_anim.stop()
@@ -455,7 +577,7 @@ class PickerItem(QtWidgets.QGraphicsObject):
         self._glow_anim.start()
         super().hoverLeaveEvent(event)
 
-    # ── selection change ───────────────────────────────────────────────────
+    # ── selection / snap ───────────────────────────────────────────────────
     def itemChange(self, change, value):
         if change == QtWidgets.QGraphicsItem.ItemSelectedHasChanged:
             self._handle.setVisible(
@@ -473,7 +595,6 @@ class PickerItem(QtWidgets.QGraphicsObject):
                 add = bool(event.modifiers()
                            & (Qt.ShiftModifier | Qt.ControlModifier))
                 self._do_click_action(add=add)
-                # Scene selection state
                 if add:
                     self.setSelected(not self.isSelected())
                 else:
@@ -484,21 +605,53 @@ class PickerItem(QtWidgets.QGraphicsObject):
                     self.setSelected(True)
                 event.accept()
                 return
+            # Design mode — record start position for undo
+            self._drag_start_pos = QtCore.QPointF(self.pos())
         super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event) -> None:
+        if (event.button() == Qt.LeftButton
+                and self._mode == PickerMode.DESIGN
+                and self._drag_start_pos is not None):
+            new_pos = self.pos()
+            if new_pos != self._drag_start_pos:
+                # Collect all items that were dragged together (selected)
+                pairs: List[tuple] = []
+                for it in (self.scene().selectedItems() if self.scene() else []):
+                    if isinstance(it, PickerItem) and it._drag_start_pos is not None:
+                        pairs.append((it, it._drag_start_pos))
+                        it._drag_start_pos = None
+                if not pairs:
+                    pairs = [(self, self._drag_start_pos)]
+                stack = self._undo_stack()
+                if stack:
+                    # Don't re-execute; items are already at new positions
+                    cmd = MoveItemCommand(pairs, "Move")
+                    stack.push(cmd)
+            self._drag_start_pos = None
+        super().mouseReleaseEvent(event)
 
     def mouseDoubleClickEvent(self, event) -> None:
         if self._mode == PickerMode.DESIGN and event.button() == Qt.LeftButton:
             new_label, ok = QtWidgets.QInputDialog.getText(
                 None, "Rename Item", "Label:", text=self._label)
-            if ok and new_label:
-                self.label = new_label
+            if ok and new_label and new_label != self._label:
+                stack = self._undo_stack()
+                if stack:
+                    stack.push(PropertyChangeCommand(
+                        self, "_label", self._label, new_label, "Rename"))
+                else:
+                    self.label = new_label
             event.accept()
             return
         super().mouseDoubleClickEvent(event)
 
+    # ── context menu (all actions go through undo) ─────────────────────────
     def contextMenuEvent(self, event) -> None:
         if self._mode != PickerMode.DESIGN:
             return
+        stack = self._undo_stack()
+
         menu = QtWidgets.QMenu()
         act_rename  = menu.addAction("Rename")
         act_nodes   = menu.addAction("Edit Maya Nodes...")
@@ -516,51 +669,114 @@ class PickerItem(QtWidgets.QGraphicsObject):
         act_del = menu.addAction("Delete")
 
         chosen = menu.exec_(event.screenPos())
+        if chosen is None:
+            return
+
         if chosen == act_rename:
             t, ok = QtWidgets.QInputDialog.getText(
                 None, "Rename", "Label:", text=self._label)
-            if ok and t:
-                self.label = t
+            if ok and t and t != self._label:
+                if stack:
+                    stack.push(PropertyChangeCommand(
+                        self, "_label", self._label, t, "Rename"))
+                else:
+                    self.label = t
+
         elif chosen == act_nodes:
             t, ok = QtWidgets.QInputDialog.getText(
                 None, "Maya Nodes", "Comma-separated:",
                 text=", ".join(self._maya_nodes))
             if ok:
-                self._maya_nodes = [n.strip() for n in t.split(",") if n.strip()]
+                new_nodes = [n.strip() for n in t.split(",") if n.strip()]
+                if new_nodes != self._maya_nodes:
+                    if stack:
+                        stack.push(PropertyChangeCommand(
+                            self, "_maya_nodes",
+                            list(self._maya_nodes), new_nodes, "Edit Nodes"))
+                    else:
+                        self._maya_nodes = new_nodes
+
         elif chosen == act_cmd:
             t, ok = QtWidgets.QInputDialog.getMultiLineText(
                 None, "Click Command", "Python script:",
                 self._command_on_click)
-            if ok:
-                self._command_on_click = t
+            if ok and t != self._command_on_click:
+                if stack:
+                    stack.push(PropertyChangeCommand(
+                        self, "_command_on_click",
+                        self._command_on_click, t, "Edit Command"))
+                else:
+                    self._command_on_click = t
+
         elif chosen == act_ns:
             t, ok = QtWidgets.QInputDialog.getText(
                 None, "Namespace", "Namespace (empty = none):",
                 text=self._namespace)
             if ok:
-                self._namespace = t.strip()
+                ns = t.strip()
+                if ns != self._namespace:
+                    if stack:
+                        stack.push(PropertyChangeCommand(
+                            self, "_namespace",
+                            self._namespace, ns, "Set Namespace"))
+                    else:
+                        self._namespace = ns
+
         elif chosen == act_s_rect:
-            self._set_shape(ItemShape.RECT)
+            self._undoable_set_shape(stack, ItemShape.RECT, [])
+
         elif chosen == act_s_ellip:
-            self._set_shape(ItemShape.ELLIPSE)
+            self._undoable_set_shape(stack, ItemShape.ELLIPSE, [])
+
         elif chosen == act_s_poly:
-            self._edit_polygon_points()
+            self._edit_polygon_points_undoable(stack)
+
         elif chosen == act_rot_cw:
-            self.setRotation(self.rotation() + 15)
+            old = self.rotation()
+            if stack:
+                stack.push(RotateItemCommand(self, old, old + 15))
+            else:
+                self.setRotation(old + 15)
+
         elif chosen == act_rot_ccw:
-            self.setRotation(self.rotation() - 15)
+            old = self.rotation()
+            if stack:
+                stack.push(RotateItemCommand(self, old, old - 15))
+            else:
+                self.setRotation(old - 15)
+
         elif chosen == act_rot_0:
-            self.setRotation(0)
+            old = self.rotation()
+            if old != 0 and stack:
+                stack.push(RotateItemCommand(self, old, 0))
+            else:
+                self.setRotation(0)
+
         elif chosen == act_del:
-            self.scene().removeItem(self)
+            scene = self.scene()
+            if stack and scene:
+                stack.push(DeleteItemCommand(scene, self))
+            elif scene:
+                scene.removeItem(self)
 
-    def _set_shape(self, shape: ItemShape) -> None:
-        self.prepareGeometryChange()
-        self._shape_type = shape
-        self.update()
+    def _undoable_set_shape(self, stack: Optional[QtWidgets.QUndoStack],
+                            shape: ItemShape,
+                            poly: List[List[float]]) -> None:
+        old_shape = self._shape_type
+        old_poly = list(self._polygon_points)
+        if shape == old_shape and poly == old_poly:
+            return
+        if stack:
+            stack.push(ChangeShapeCommand(
+                self, old_shape, old_poly, shape, poly))
+        else:
+            self.prepareGeometryChange()
+            self._shape_type = shape
+            self._polygon_points = list(poly)
+            self.update()
 
-    def _edit_polygon_points(self) -> None:
-        """Let the user type polygon points as a simple list."""
+    def _edit_polygon_points_undoable(
+            self, stack: Optional[QtWidgets.QUndoStack]) -> None:
         current = str(self._polygon_points) if self._polygon_points else ""
         hint = ("Enter points as [[x1,y1],[x2,y2],...]\n"
                 "Coordinates are relative to item centre.")
@@ -573,23 +789,21 @@ class PickerItem(QtWidgets.QGraphicsObject):
             pts = ast.literal_eval(t)
             if isinstance(pts, list) and all(
                     isinstance(p, (list, tuple)) and len(p) == 2 for p in pts):
-                self._polygon_points = [[float(p[0]), float(p[1])] for p in pts]
-                self._set_shape(ItemShape.POLYGON)
+                new_poly = [[float(p[0]), float(p[1])] for p in pts]
+                self._undoable_set_shape(stack, ItemShape.POLYGON, new_poly)
             else:
                 raise ValueError
         except Exception:
             cmds.warning("DD Picker: invalid polygon points format")
 
-    # ── click action ──────────────────────────────────────────────────────
+    # ── click action (Animation mode — not undoable) ──────────────────────
     def _do_click_action(self, add: bool = False) -> None:
-        """Execute selection + optional command script."""
         nodes = self.resolved_nodes()
         if nodes:
             existing = [n for n in nodes if cmds.objExists(n)]
             missing  = [n for n in nodes if n not in existing]
             if missing:
-                self._show_toast(
-                    "Not found: " + ", ".join(missing))
+                self._show_toast("Not found: " + ", ".join(missing))
             if existing:
                 try:
                     cmds.select(existing, add=add, replace=not add)
@@ -605,7 +819,6 @@ class PickerItem(QtWidgets.QGraphicsObject):
                 traceback.print_exc()
 
     def _show_toast(self, msg: str) -> None:
-        """Send a message to the toast overlay in the parent view."""
         view = self.scene().views()[0] if self.scene() and self.scene().views() else None
         if view and hasattr(view, "_toast"):
             view._toast.show_message(msg)
@@ -684,12 +897,6 @@ class BackgroundImageItem(QtWidgets.QGraphicsPixmapItem):
 # ╚═════════════════════════════════════════════════════════════════════════╝
 
 class MayaCallbackManager:
-    """Singleton that manages Maya API callbacks for the picker.
-
-    Ensures that ``SelectionChanged`` callbacks are never duplicated and
-    are always cleaned up when the picker window closes.
-    """
-
     _instance: Optional["MayaCallbackManager"] = None
     _initialized: bool = False
 
@@ -704,10 +911,9 @@ class MayaCallbackManager:
         self._initialized = True
         self._callback_id: Optional[int] = None
         self._scene: Optional[PickerScene] = None
-        self._suppress: bool = False  # guard against feedback loops
+        self._suppress: bool = False
 
-    def register(self, scene: PickerScene) -> None:
-        """Start listening to Maya's SelectionChanged event."""
+    def register(self, scene: "PickerScene") -> None:
         self.unregister()
         self._scene = scene
         try:
@@ -718,7 +924,6 @@ class MayaCallbackManager:
             self._callback_id = None
 
     def unregister(self) -> None:
-        """Remove the callback (safe to call multiple times)."""
         if self._callback_id is not None:
             try:
                 om2.MMessage.removeCallback(self._callback_id)
@@ -736,11 +941,6 @@ class MayaCallbackManager:
         self._suppress = value
 
     def _on_maya_selection_changed(self, *_args) -> None:
-        """Called by Maya when the viewport selection changes.
-
-        Updates the picker scene so that items whose Maya nodes are
-        currently selected get highlighted, and vice-versa.
-        """
         if self._suppress or self._scene is None:
             return
         try:
@@ -756,7 +956,6 @@ class MayaCallbackManager:
             traceback.print_exc()
 
 
-# module-level singleton reference
 _callback_mgr = MayaCallbackManager()
 
 
@@ -771,6 +970,7 @@ class PickerScene(QtWidgets.QGraphicsScene):
         super().__init__(parent)
         self._mode: PickerMode = PickerMode.ANIMATION
         self._bg_item: Optional[BackgroundImageItem] = None
+        self.undo_stack = QtWidgets.QUndoStack(self)
 
     # -- mode ---------------------------------------------------------------
     @property
@@ -820,6 +1020,7 @@ class PickerScene(QtWidgets.QGraphicsScene):
         polygon_points: Optional[List[List[float]]] = None,
         command_on_click: str = "",
         namespace: str = "",
+        undoable: bool = False,
     ) -> PickerItem:
         item = PickerItem(
             label=label, maya_nodes=maya_nodes, width=w, height=h,
@@ -828,7 +1029,10 @@ class PickerScene(QtWidgets.QGraphicsScene):
         )
         item.setPos(x, y)
         item.set_mode(self._mode)
-        self.addItem(item)
+        if undoable:
+            self.undo_stack.push(AddItemCommand(self, item))
+        else:
+            self.addItem(item)
         return item
 
 
@@ -866,7 +1070,6 @@ class PickerGraphicsView(QtWidgets.QGraphicsView):
         self._rb_active: bool = False
         self._rb_origin = QtCore.QPoint()
 
-        # Toast overlay for non-intrusive error messages
         self._toast = _ToastLabel(self)
 
     # -- zoom ---------------------------------------------------------------
@@ -919,22 +1122,18 @@ class PickerGraphicsView(QtWidgets.QGraphicsView):
     def _rb_finish(self, mods) -> None:
         self._rb.hide()
         self._rb_active = False
-
         rect = self._rb.geometry()
         scene_rect = QtCore.QRectF(self.mapToScene(rect.topLeft()),
                                    self.mapToScene(rect.bottomRight()))
-
         add = bool(mods & (Qt.ShiftModifier | Qt.ControlModifier))
         if not add:
             self.scene().clearSelection()
-
         for item in self.scene().items(scene_rect, Qt.IntersectsItemShape):
             if isinstance(item, PickerItem):
                 item.setSelected(True)
-
         _sync_maya_selection(self.scene())
 
-    # -- event overrides ----------------------------------------------------
+    # -- events -------------------------------------------------------------
     def wheelEvent(self, event) -> None:
         angle = event.angleDelta().y()
         factor = ZOOM_FACTOR if angle > 0 else 1.0 / ZOOM_FACTOR
@@ -944,14 +1143,12 @@ class PickerGraphicsView(QtWidgets.QGraphicsView):
 
     def mousePressEvent(self, event) -> None:
         btn, mods = event.button(), event.modifiers()
-
         if btn == Qt.MiddleButton or (btn == Qt.LeftButton and mods & Qt.AltModifier):
             self._panning = True
             self._pan_start = event.pos()
             self.setCursor(Qt.ClosedHandCursor)
             event.accept()
             return
-
         if btn == Qt.LeftButton:
             picker_scene = self.scene()
             if (isinstance(picker_scene, PickerScene)
@@ -965,7 +1162,6 @@ class PickerGraphicsView(QtWidgets.QGraphicsView):
                     _callback_mgr.suppress = False
                 event.accept()
                 return
-
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event) -> None:
@@ -994,7 +1190,7 @@ class PickerGraphicsView(QtWidgets.QGraphicsView):
             return
         super().mouseReleaseEvent(event)
 
-    # -- grid background ----------------------------------------------------
+    # -- grid ---------------------------------------------------------------
     def drawBackground(self, painter: QtGui.QPainter,
                        rect: QtCore.QRectF) -> None:
         super().drawBackground(painter, rect)
@@ -1047,12 +1243,10 @@ class PickerGraphicsView(QtWidgets.QGraphicsView):
 
 
 # ╔═════════════════════════════════════════════════════════════════════════╗
-# ║  SELECTION SYNC  (Picker → Maya)                                        ║
+# ║  SELECTION SYNC                                                         ║
 # ╚═════════════════════════════════════════════════════════════════════════╝
 
 def _sync_maya_selection(scene: QtWidgets.QGraphicsScene) -> None:
-    """Push picker scene selection to Maya, suppressing the callback
-    to avoid a feedback loop."""
     nodes: List[str] = []
     for item in scene.selectedItems():
         if isinstance(item, PickerItem):
@@ -1091,7 +1285,6 @@ class DDPickerWindow(MayaQWidgetDockableMixin, QtWidgets.QMainWindow):
         self._connect_signals()
         self._add_demo_items()
 
-        # Register Maya selection callback
         _callback_mgr.register(self._scene)
 
     # -- UI -----------------------------------------------------------------
@@ -1178,12 +1371,30 @@ class DDPickerWindow(MayaQWidgetDockableMixin, QtWidgets.QMainWindow):
 
     def _build_menubar(self) -> None:
         mb = self.menuBar()
+
+        # -- Edit (Undo / Redo) --
+        m_edit = mb.addMenu("Edit")
+        undo_stack = self._scene.undo_stack
+
+        self._act_undo = undo_stack.createUndoAction(self, "Undo")
+        self._act_undo.setShortcut(QtGui.QKeySequence.Undo)
+        m_edit.addAction(self._act_undo)
+
+        self._act_redo = undo_stack.createRedoAction(self, "Redo")
+        self._act_redo.setShortcut(QtGui.QKeySequence.Redo)
+        m_edit.addAction(self._act_redo)
+
+        # -- File --
         m_file = mb.addMenu("File")
         m_file.addAction("Load Background Image...", self._on_load_bg)
         m_file.addAction("Remove Background Image",  self._on_remove_bg)
+
+        # -- View --
         m_view = mb.addMenu("View")
         m_view.addAction("Reset View",  self._on_reset_view)
         m_view.addAction("Fit All",     self._view.fit_all)
+
+        # -- Item --
         m_item = mb.addMenu("Item")
         m_item.addAction("Add Rectangle...",
                          lambda: self._on_add_item(ItemShape.RECT))
@@ -1196,7 +1407,6 @@ class DDPickerWindow(MayaQWidgetDockableMixin, QtWidgets.QMainWindow):
     # -- demo ---------------------------------------------------------------
     def _add_demo_items(self) -> None:
         demos = [
-            # label, nodes, x, y, w, h, shape
             ("Head",   ["head_ctrl"],       0, -140, 50, 50, ItemShape.ELLIPSE),
             ("Neck",   ["neck_ctrl"],       0, -100, 50, 22, ItemShape.RECT),
             ("Body",   ["body_ctrl"],       0,    0, 70, 30, ItemShape.RECT),
@@ -1273,7 +1483,8 @@ class DDPickerWindow(MayaQWidgetDockableMixin, QtWidgets.QMainWindow):
         centre = self._view.mapToScene(
             self._view.viewport().rect().center())
         self._scene.add_picker_item(
-            label, nodes, centre.x(), centre.y(), shape=shape)
+            label, nodes, centre.x(), centre.y(),
+            shape=shape, undoable=True)
 
     # -- lifecycle ----------------------------------------------------------
     def dockCloseEventTriggered(self) -> None:
@@ -1287,7 +1498,6 @@ class DDPickerWindow(MayaQWidgetDockableMixin, QtWidgets.QMainWindow):
 # ╚═════════════════════════════════════════════════════════════════════════╝
 
 def show() -> DDPickerWindow:
-    """Open (or re-open) the DD Picker window."""
     _close_existing()
     win = DDPickerWindow()
     win.show(dockable=True, area="right", allowedArea="all",
@@ -1322,23 +1532,9 @@ def add_picker_item(
     Examples::
 
         dd_picker.show()
-
-        # Rectangle
         dd_picker.add_picker_item("Body", ["body_ctrl"], 0, 0)
-
-        # Ellipse
         dd_picker.add_picker_item("Head", ["head_ctrl"], 0, -100,
                                   50, 50, shape=dd_picker.ItemShape.ELLIPSE)
-
-        # Custom polygon (diamond)
-        dd_picker.add_picker_item("COG", ["cog_ctrl"], 0, 40, 60, 60,
-            shape=dd_picker.ItemShape.POLYGON,
-            polygon_points=[[0,-30],[30,0],[0,30],[-30,0]])
-
-        # With namespace and click command
-        dd_picker.add_picker_item("L_Arm", ["arm_ctrl"], -80, 0,
-            namespace="characterA",
-            command_on_click="print('arm selected')")
     """
     win = DDPickerWindow._instance
     if win is None:
