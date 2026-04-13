@@ -88,6 +88,138 @@ class ItemShape(Enum):
     POLYGON  = "polygon"
 
 
+class Lang(Enum):
+    EN = "en"
+    ZH = "zh"
+
+
+# ╔═════════════════════════════════════════════════════════════════════════╗
+# ║  INTERNATIONALISATION (i18n)                                            ║
+# ╚═════════════════════════════════════════════════════════════════════════╝
+
+_I18N: Dict[str, Dict[str, str]] = {
+    # ── window / menus ────────────────────────────────────────────────────
+    "window_title":             {"en": "DD Picker",                     "zh": "DD Picker"},
+    "menu_edit":                {"en": "Edit",                          "zh": "\u7f16\u8f91"},
+    "menu_file":                {"en": "File",                          "zh": "\u6587\u4ef6"},
+    "menu_view":                {"en": "View",                          "zh": "\u89c6\u56fe"},
+    "menu_item":                {"en": "Item",                          "zh": "\u63a7\u4ef6"},
+    "undo":                     {"en": "Undo",                          "zh": "\u64a4\u9500"},
+    "redo":                     {"en": "Redo",                          "zh": "\u91cd\u505a"},
+
+    # ── toolbar ───────────────────────────────────────────────────────────
+    "animation_mode":           {"en": "Animation Mode",                "zh": "\u52a8\u753b\u6a21\u5f0f"},
+    "design_mode":              {"en": "Design Mode",                   "zh": "\u8bbe\u8ba1\u6a21\u5f0f"},
+    "toggle_mode_tip":          {"en": "Toggle Design / Animation mode","zh": "\u5207\u6362 \u8bbe\u8ba1 / \u52a8\u753b \u6a21\u5f0f"},
+    "snap":                     {"en": "Snap",                          "zh": "\u5438\u9644"},
+    "snap_tip":                 {"en": "Snap to grid (Design mode)",    "zh": "\u5438\u9644\u7f51\u683c\uff08\u8bbe\u8ba1\u6a21\u5f0f\uff09"},
+    "reset":                    {"en": "Reset",                         "zh": "\u91cd\u7f6e"},
+    "fit":                      {"en": "Fit",                           "zh": "\u9002\u914d"},
+
+    # ── background controls ───────────────────────────────────────────────
+    "load_bg":                  {"en": "Load BG",                       "zh": "\u52a0\u8f7d\u80cc\u666f"},
+    "screenshot_bg":            {"en": "Screenshot BG",                 "zh": "\u622a\u56fe\u80cc\u666f"},
+    "screenshot_bg_tip":        {"en": "Capture Maya viewport as background",
+                                                                        "zh": "\u622a\u53d6 Maya \u89c6\u53e3\u4f5c\u4e3a\u80cc\u666f"},
+    "remove_bg":                {"en": "Remove BG",                     "zh": "\u79fb\u9664\u80cc\u666f"},
+    "opacity":                  {"en": "Opacity:",                      "zh": "\u900f\u660e\u5ea6:"},
+    "scale":                    {"en": "Scale:",                        "zh": "\u7f29\u653e:"},
+
+    # ── file menu ─────────────────────────────────────────────────────────
+    "load_bg_image":            {"en": "Load Background Image...",      "zh": "\u52a0\u8f7d\u80cc\u666f\u56fe\u7247..."},
+    "screenshot_as_bg":         {"en": "Screenshot as Background",      "zh": "\u622a\u56fe\u4f5c\u4e3a\u80cc\u666f"},
+    "remove_bg_image":          {"en": "Remove Background Image",       "zh": "\u79fb\u9664\u80cc\u666f\u56fe\u7247"},
+
+    # ── view menu ─────────────────────────────────────────────────────────
+    "reset_view":               {"en": "Reset View",                    "zh": "\u91cd\u7f6e\u89c6\u56fe"},
+    "fit_all":                  {"en": "Fit All",                       "zh": "\u9002\u914d\u5168\u90e8"},
+
+    # ── item menu ─────────────────────────────────────────────────────────
+    "add_rectangle":            {"en": "Add Rectangle...",              "zh": "\u6dfb\u52a0\u77e9\u5f62..."},
+    "add_ellipse":              {"en": "Add Ellipse...",                "zh": "\u6dfb\u52a0\u692d\u5706..."},
+
+    # ── context menu ──────────────────────────────────────────────────────
+    "rename":                   {"en": "Rename",                        "zh": "\u91cd\u547d\u540d"},
+    "edit_maya_nodes":          {"en": "Edit Maya Nodes...",            "zh": "\u7f16\u8f91 Maya \u8282\u70b9..."},
+    "edit_click_cmd":           {"en": "Edit Click Command...",         "zh": "\u7f16\u8f91\u70b9\u51fb\u547d\u4ee4..."},
+    "set_namespace":            {"en": "Set Namespace...",              "zh": "\u8bbe\u7f6e\u547d\u540d\u7a7a\u95f4..."},
+    "shape":                    {"en": "Shape",                         "zh": "\u5f62\u72b6"},
+    "rectangle":                {"en": "Rectangle",                     "zh": "\u77e9\u5f62"},
+    "ellipse":                  {"en": "Ellipse",                       "zh": "\u692d\u5706"},
+    "polygon_edit":             {"en": "Polygon (edit points)...",      "zh": "\u591a\u8fb9\u5f62\uff08\u7f16\u8f91\u9876\u70b9\uff09..."},
+    "rotate_cw":                {"en": "Rotate +15\u00b0",             "zh": "\u65cb\u8f6c +15\u00b0"},
+    "rotate_ccw":               {"en": "Rotate \u221215\u00b0",        "zh": "\u65cb\u8f6c \u221215\u00b0"},
+    "reset_rotation":           {"en": "Reset Rotation",                "zh": "\u91cd\u7f6e\u65cb\u8f6c"},
+    "delete":                   {"en": "Delete",                        "zh": "\u5220\u9664"},
+
+    # ── dialogs ───────────────────────────────────────────────────────────
+    "dlg_rename":               {"en": "Rename Item",                   "zh": "\u91cd\u547d\u540d\u63a7\u4ef6"},
+    "dlg_label":                {"en": "Label:",                        "zh": "\u6807\u7b7e:"},
+    "dlg_maya_nodes":           {"en": "Maya Nodes",                    "zh": "Maya \u8282\u70b9"},
+    "dlg_comma_sep":            {"en": "Comma-separated:",              "zh": "\u9017\u53f7\u5206\u9694:"},
+    "dlg_click_cmd":            {"en": "Click Command",                 "zh": "\u70b9\u51fb\u547d\u4ee4"},
+    "dlg_python_script":        {"en": "Python script:",                "zh": "Python \u811a\u672c:"},
+    "dlg_namespace":            {"en": "Namespace",                     "zh": "\u547d\u540d\u7a7a\u95f4"},
+    "dlg_namespace_hint":       {"en": "Namespace (empty = none):",     "zh": "\u547d\u540d\u7a7a\u95f4\uff08\u7a7a = \u65e0\uff09:"},
+    "dlg_polygon_title":        {"en": "Polygon Points",               "zh": "\u591a\u8fb9\u5f62\u9876\u70b9"},
+    "dlg_polygon_hint":         {"en": "Enter points as [[x1,y1],[x2,y2],...]\n"
+                                       "Coordinates are relative to item centre.",
+                                 "zh": "\u8f93\u5165\u9876\u70b9 [[x1,y1],[x2,y2],...]\n"
+                                       "\u5750\u6807\u76f8\u5bf9\u4e8e\u63a7\u4ef6\u4e2d\u5fc3\u3002"},
+    "dlg_add_item":             {"en": "Add Picker Item",               "zh": "\u6dfb\u52a0 Picker \u63a7\u4ef6"},
+    "dlg_maya_nodes_prompt":    {"en": "Comma-separated Maya node names:","zh": "\u9017\u53f7\u5206\u9694\u7684 Maya \u8282\u70b9\u540d:"},
+    "dlg_select_bg":            {"en": "Select Background Image",       "zh": "\u9009\u62e9\u80cc\u666f\u56fe\u7247"},
+    "dlg_screenshot_title":     {"en": "Screenshot Background",         "zh": "\u622a\u56fe\u80cc\u666f"},
+    "dlg_capture_source":       {"en": "Capture source:",               "zh": "\u622a\u53d6\u6e90:"},
+    "active_viewport":          {"en": "Active Viewport",               "zh": "\u5f53\u524d\u89c6\u53e3"},
+
+    # ── toast / warning messages ──────────────────────────────────────────
+    "warn_not_found":           {"en": "Not found: ",                   "zh": "\u672a\u627e\u5230: "},
+    "warn_script_error":        {"en": "Script error: ",                "zh": "\u811a\u672c\u9519\u8bef: "},
+    "warn_invalid_poly":        {"en": "DD Picker: invalid polygon points format",
+                                                                        "zh": "DD Picker: \u591a\u8fb9\u5f62\u9876\u70b9\u683c\u5f0f\u65e0\u6548"},
+    "warn_load_failed":         {"en": "DD Picker: failed to load image \u2014 ",
+                                                                        "zh": "DD Picker: \u65e0\u6cd5\u52a0\u8f7d\u56fe\u7247 \u2014 "},
+    "warn_no_panel":            {"en": "No model panel found",          "zh": "\u672a\u627e\u5230\u6a21\u578b\u89c6\u53e3"},
+    "warn_screenshot_fail":     {"en": "Screenshot failed",             "zh": "\u622a\u56fe\u5931\u8d25"},
+    "warn_screenshot_load":     {"en": "Failed to load screenshot",     "zh": "\u65e0\u6cd5\u52a0\u8f7d\u622a\u56fe"},
+    "warn_screenshot_error":    {"en": "Screenshot error: ",            "zh": "\u622a\u56fe\u9519\u8bef: "},
+    "warn_show_first":          {"en": "DD Picker: call dd_picker.show() first.",
+                                                                        "zh": "DD Picker: \u8bf7\u5148\u8c03\u7528 dd_picker.show()\u3002"},
+
+    # ── language toggle ───────────────────────────────────────────────────
+    "lang_toggle":              {"en": "\u4e2d\u6587",                  "zh": "English"},
+    "lang_toggle_tip":          {"en": "Switch to Chinese",             "zh": "\u5207\u6362\u5230\u82f1\u6587"},
+}
+
+# ── runtime language state ────────────────────────────────────────────────
+_current_lang: Lang = Lang.EN
+_lang_listeners: List = []       # callables notified on language change
+
+
+def tr(key: str) -> str:
+    """Look up the current-language string for *key*."""
+    entry = _I18N.get(key)
+    if entry is None:
+        return key
+    return entry.get(_current_lang.value, entry.get("en", key))
+
+
+def set_language(lang: Lang) -> None:
+    """Switch UI language and notify all open windows."""
+    global _current_lang
+    _current_lang = lang
+    for cb in _lang_listeners:
+        try:
+            cb()
+        except Exception:
+            traceback.print_exc()
+
+
+def get_language() -> Lang:
+    return _current_lang
+
+
 # ╔═════════════════════════════════════════════════════════════════════════╗
 # ║  HELPERS                                                                ║
 # ╚═════════════════════════════════════════════════════════════════════════╝
@@ -634,12 +766,12 @@ class PickerItem(QtWidgets.QGraphicsObject):
     def mouseDoubleClickEvent(self, event) -> None:
         if self._mode == PickerMode.DESIGN and event.button() == Qt.LeftButton:
             new_label, ok = QtWidgets.QInputDialog.getText(
-                None, "Rename Item", "Label:", text=self._label)
+                None, tr("dlg_rename"), tr("dlg_label"), text=self._label)
             if ok and new_label and new_label != self._label:
                 stack = self._undo_stack()
                 if stack:
                     stack.push(PropertyChangeCommand(
-                        self, "_label", self._label, new_label, "Rename"))
+                        self, "_label", self._label, new_label, tr("rename")))
                 else:
                     self.label = new_label
             event.accept()
@@ -653,20 +785,20 @@ class PickerItem(QtWidgets.QGraphicsObject):
         stack = self._undo_stack()
 
         menu = QtWidgets.QMenu()
-        act_rename  = menu.addAction("Rename")
-        act_nodes   = menu.addAction("Edit Maya Nodes...")
-        act_cmd     = menu.addAction("Edit Click Command...")
-        act_ns      = menu.addAction("Set Namespace...")
-        act_shape   = menu.addMenu("Shape")
-        act_s_rect  = act_shape.addAction("Rectangle")
-        act_s_ellip = act_shape.addAction("Ellipse")
-        act_s_poly  = act_shape.addAction("Polygon (edit points)...")
+        act_rename  = menu.addAction(tr("rename"))
+        act_nodes   = menu.addAction(tr("edit_maya_nodes"))
+        act_cmd     = menu.addAction(tr("edit_click_cmd"))
+        act_ns      = menu.addAction(tr("set_namespace"))
+        act_shape   = menu.addMenu(tr("shape"))
+        act_s_rect  = act_shape.addAction(tr("rectangle"))
+        act_s_ellip = act_shape.addAction(tr("ellipse"))
+        act_s_poly  = act_shape.addAction(tr("polygon_edit"))
         menu.addSeparator()
-        act_rot_cw  = menu.addAction("Rotate +15\u00b0")
-        act_rot_ccw = menu.addAction("Rotate \u221215\u00b0")
-        act_rot_0   = menu.addAction("Reset Rotation")
+        act_rot_cw  = menu.addAction(tr("rotate_cw"))
+        act_rot_ccw = menu.addAction(tr("rotate_ccw"))
+        act_rot_0   = menu.addAction(tr("reset_rotation"))
         menu.addSeparator()
-        act_del = menu.addAction("Delete")
+        act_del = menu.addAction(tr("delete"))
 
         chosen = menu.exec_(event.screenPos())
         if chosen is None:
@@ -674,17 +806,17 @@ class PickerItem(QtWidgets.QGraphicsObject):
 
         if chosen == act_rename:
             t, ok = QtWidgets.QInputDialog.getText(
-                None, "Rename", "Label:", text=self._label)
+                None, tr("rename"), tr("dlg_label"), text=self._label)
             if ok and t and t != self._label:
                 if stack:
                     stack.push(PropertyChangeCommand(
-                        self, "_label", self._label, t, "Rename"))
+                        self, "_label", self._label, t, tr("rename")))
                 else:
                     self.label = t
 
         elif chosen == act_nodes:
             t, ok = QtWidgets.QInputDialog.getText(
-                None, "Maya Nodes", "Comma-separated:",
+                None, tr("dlg_maya_nodes"), tr("dlg_comma_sep"),
                 text=", ".join(self._maya_nodes))
             if ok:
                 new_nodes = [n.strip() for n in t.split(",") if n.strip()]
@@ -692,25 +824,26 @@ class PickerItem(QtWidgets.QGraphicsObject):
                     if stack:
                         stack.push(PropertyChangeCommand(
                             self, "_maya_nodes",
-                            list(self._maya_nodes), new_nodes, "Edit Nodes"))
+                            list(self._maya_nodes), new_nodes,
+                            tr("edit_maya_nodes")))
                     else:
                         self._maya_nodes = new_nodes
 
         elif chosen == act_cmd:
             t, ok = QtWidgets.QInputDialog.getMultiLineText(
-                None, "Click Command", "Python script:",
+                None, tr("dlg_click_cmd"), tr("dlg_python_script"),
                 self._command_on_click)
             if ok and t != self._command_on_click:
                 if stack:
                     stack.push(PropertyChangeCommand(
                         self, "_command_on_click",
-                        self._command_on_click, t, "Edit Command"))
+                        self._command_on_click, t, tr("edit_click_cmd")))
                 else:
                     self._command_on_click = t
 
         elif chosen == act_ns:
             t, ok = QtWidgets.QInputDialog.getText(
-                None, "Namespace", "Namespace (empty = none):",
+                None, tr("dlg_namespace"), tr("dlg_namespace_hint"),
                 text=self._namespace)
             if ok:
                 ns = t.strip()
@@ -718,7 +851,7 @@ class PickerItem(QtWidgets.QGraphicsObject):
                     if stack:
                         stack.push(PropertyChangeCommand(
                             self, "_namespace",
-                            self._namespace, ns, "Set Namespace"))
+                            self._namespace, ns, tr("set_namespace")))
                     else:
                         self._namespace = ns
 
@@ -778,10 +911,8 @@ class PickerItem(QtWidgets.QGraphicsObject):
     def _edit_polygon_points_undoable(
             self, stack: Optional[QtWidgets.QUndoStack]) -> None:
         current = str(self._polygon_points) if self._polygon_points else ""
-        hint = ("Enter points as [[x1,y1],[x2,y2],...]\n"
-                "Coordinates are relative to item centre.")
         t, ok = QtWidgets.QInputDialog.getMultiLineText(
-            None, "Polygon Points", hint, current)
+            None, tr("dlg_polygon_title"), tr("dlg_polygon_hint"), current)
         if not ok:
             return
         try:
@@ -794,7 +925,7 @@ class PickerItem(QtWidgets.QGraphicsObject):
             else:
                 raise ValueError
         except Exception:
-            cmds.warning("DD Picker: invalid polygon points format")
+            cmds.warning(tr("warn_invalid_poly"))
 
     # ── click action (Animation mode — not undoable) ──────────────────────
     def _do_click_action(self, add: bool = False) -> None:
@@ -803,7 +934,7 @@ class PickerItem(QtWidgets.QGraphicsObject):
             existing = [n for n in nodes if cmds.objExists(n)]
             missing  = [n for n in nodes if n not in existing]
             if missing:
-                self._show_toast("Not found: " + ", ".join(missing))
+                self._show_toast(tr("warn_not_found") + ", ".join(missing))
             if existing:
                 try:
                     cmds.select(existing, add=add, replace=not add)
@@ -815,7 +946,7 @@ class PickerItem(QtWidgets.QGraphicsObject):
                 exec(self._command_on_click, {"__builtins__": __builtins__,
                                               "cmds": cmds, "mel": mel})
             except Exception as exc:
-                self._show_toast("Script error: {}".format(exc))
+                self._show_toast(tr("warn_script_error") + str(exc))
                 traceback.print_exc()
 
     def _show_toast(self, msg: str) -> None:
@@ -991,7 +1122,7 @@ class PickerScene(QtWidgets.QGraphicsScene):
     def set_background_image(self, path: str) -> Optional[BackgroundImageItem]:
         pixmap = QtGui.QPixmap(path)
         if pixmap.isNull():
-            cmds.warning("DD Picker: failed to load image — " + path)
+            cmds.warning(tr("warn_load_failed") + path)
             return None
         return self.set_background_pixmap(pixmap)
 
@@ -1280,7 +1411,6 @@ class DDPickerWindow(MayaQWidgetDockableMixin, QtWidgets.QMainWindow):
 
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None):
         super().__init__(parent)
-        self.setWindowTitle(WINDOW_TITLE)
         self.setMinimumSize(480, 360)
 
         self._scene = PickerScene(self)
@@ -1289,11 +1419,15 @@ class DDPickerWindow(MayaQWidgetDockableMixin, QtWidgets.QMainWindow):
         self._build_ui()
         self._build_menubar()
         self._connect_signals()
+        self._retranslate()
         self._add_demo_items()
 
         _callback_mgr.register(self._scene)
 
-    # -- UI -----------------------------------------------------------------
+        # Register for language change notifications
+        _lang_listeners.append(self._retranslate)
+
+    # -- UI (layout only — text set via _retranslate) -----------------------
     def _build_ui(self) -> None:
         central = QtWidgets.QWidget(self)
         self.setCentralWidget(central)
@@ -1305,17 +1439,15 @@ class DDPickerWindow(MayaQWidgetDockableMixin, QtWidgets.QMainWindow):
         tb = QtWidgets.QHBoxLayout()
         tb.setContentsMargins(6, 4, 6, 4)
 
-        self._btn_mode = QtWidgets.QPushButton("Animation Mode")
+        self._btn_mode = QtWidgets.QPushButton()
         self._btn_mode.setCheckable(True)
         self._btn_mode.setFixedHeight(24)
-        self._btn_mode.setToolTip("Toggle Design / Animation mode")
         self._btn_mode.clicked.connect(self._on_toggle_mode)
         tb.addWidget(self._btn_mode)
         tb.addSpacing(8)
 
-        self._chk_snap = QtWidgets.QCheckBox("Snap")
+        self._chk_snap = QtWidgets.QCheckBox()
         self._chk_snap.setChecked(True)
-        self._chk_snap.setToolTip("Snap to grid (Design mode)")
         self._chk_snap.toggled.connect(self._on_snap_toggled)
         tb.addWidget(self._chk_snap)
         tb.addSpacing(8)
@@ -1325,15 +1457,21 @@ class DDPickerWindow(MayaQWidgetDockableMixin, QtWidgets.QMainWindow):
         tb.addWidget(self._lbl_zoom)
         tb.addStretch()
 
-        btn_reset = QtWidgets.QPushButton("Reset")
-        btn_reset.setFixedHeight(24)
-        btn_reset.clicked.connect(self._on_reset_view)
-        tb.addWidget(btn_reset)
+        self._btn_lang = QtWidgets.QPushButton()
+        self._btn_lang.setFixedHeight(24)
+        self._btn_lang.setFixedWidth(52)
+        self._btn_lang.clicked.connect(self._on_toggle_lang)
+        tb.addWidget(self._btn_lang)
 
-        btn_fit = QtWidgets.QPushButton("Fit")
-        btn_fit.setFixedHeight(24)
-        btn_fit.clicked.connect(self._view.fit_all)
-        tb.addWidget(btn_fit)
+        self._btn_reset = QtWidgets.QPushButton()
+        self._btn_reset.setFixedHeight(24)
+        self._btn_reset.clicked.connect(self._on_reset_view)
+        tb.addWidget(self._btn_reset)
+
+        self._btn_fit = QtWidgets.QPushButton()
+        self._btn_fit.setFixedHeight(24)
+        self._btn_fit.clicked.connect(self._view.fit_all)
+        tb.addWidget(self._btn_fit)
 
         root.addLayout(tb)
 
@@ -1341,24 +1479,24 @@ class DDPickerWindow(MayaQWidgetDockableMixin, QtWidgets.QMainWindow):
         bg_row = QtWidgets.QHBoxLayout()
         bg_row.setContentsMargins(6, 0, 6, 4)
 
-        btn_load_bg = QtWidgets.QPushButton("Load BG")
-        btn_load_bg.setFixedHeight(22)
-        btn_load_bg.clicked.connect(self._on_load_bg)
-        bg_row.addWidget(btn_load_bg)
+        self._btn_load_bg = QtWidgets.QPushButton()
+        self._btn_load_bg.setFixedHeight(22)
+        self._btn_load_bg.clicked.connect(self._on_load_bg)
+        bg_row.addWidget(self._btn_load_bg)
 
-        btn_screenshot_bg = QtWidgets.QPushButton("Screenshot BG")
-        btn_screenshot_bg.setFixedHeight(22)
-        btn_screenshot_bg.setToolTip("Capture Maya viewport as background")
-        btn_screenshot_bg.clicked.connect(self._on_screenshot_bg)
-        bg_row.addWidget(btn_screenshot_bg)
+        self._btn_screenshot_bg = QtWidgets.QPushButton()
+        self._btn_screenshot_bg.setFixedHeight(22)
+        self._btn_screenshot_bg.clicked.connect(self._on_screenshot_bg)
+        bg_row.addWidget(self._btn_screenshot_bg)
 
-        btn_remove_bg = QtWidgets.QPushButton("Remove BG")
-        btn_remove_bg.setFixedHeight(22)
-        btn_remove_bg.clicked.connect(self._on_remove_bg)
-        bg_row.addWidget(btn_remove_bg)
+        self._btn_remove_bg = QtWidgets.QPushButton()
+        self._btn_remove_bg.setFixedHeight(22)
+        self._btn_remove_bg.clicked.connect(self._on_remove_bg)
+        bg_row.addWidget(self._btn_remove_bg)
 
         bg_row.addSpacing(8)
-        bg_row.addWidget(QtWidgets.QLabel("Opacity:"))
+        self._lbl_opacity = QtWidgets.QLabel()
+        bg_row.addWidget(self._lbl_opacity)
         self._sld_opacity = QtWidgets.QSlider(Qt.Horizontal)
         self._sld_opacity.setRange(0, 100)
         self._sld_opacity.setValue(50)
@@ -1367,7 +1505,8 @@ class DDPickerWindow(MayaQWidgetDockableMixin, QtWidgets.QMainWindow):
         bg_row.addWidget(self._sld_opacity)
 
         bg_row.addSpacing(8)
-        bg_row.addWidget(QtWidgets.QLabel("Scale:"))
+        self._lbl_scale = QtWidgets.QLabel()
+        bg_row.addWidget(self._lbl_scale)
         self._spn_bg_scale = QtWidgets.QDoubleSpinBox()
         self._spn_bg_scale.setRange(0.05, 10.0)
         self._spn_bg_scale.setSingleStep(0.05)
@@ -1384,35 +1523,76 @@ class DDPickerWindow(MayaQWidgetDockableMixin, QtWidgets.QMainWindow):
     def _build_menubar(self) -> None:
         mb = self.menuBar()
 
-        # -- Edit (Undo / Redo) --
-        m_edit = mb.addMenu("Edit")
+        self._m_edit = mb.addMenu("")
         undo_stack = self._scene.undo_stack
 
-        self._act_undo = undo_stack.createUndoAction(self, "Undo")
+        self._act_undo = undo_stack.createUndoAction(self, "")
         self._act_undo.setShortcut(QtGui.QKeySequence.Undo)
-        m_edit.addAction(self._act_undo)
+        self._m_edit.addAction(self._act_undo)
 
-        self._act_redo = undo_stack.createRedoAction(self, "Redo")
+        self._act_redo = undo_stack.createRedoAction(self, "")
         self._act_redo.setShortcut(QtGui.QKeySequence.Redo)
-        m_edit.addAction(self._act_redo)
+        self._m_edit.addAction(self._act_redo)
 
-        # -- File --
-        m_file = mb.addMenu("File")
-        m_file.addAction("Load Background Image...", self._on_load_bg)
-        m_file.addAction("Screenshot as Background", self._on_screenshot_bg)
-        m_file.addAction("Remove Background Image",  self._on_remove_bg)
+        self._m_file = mb.addMenu("")
+        self._act_load_bg = self._m_file.addAction("", self._on_load_bg)
+        self._act_screenshot_bg = self._m_file.addAction("", self._on_screenshot_bg)
+        self._act_remove_bg = self._m_file.addAction("", self._on_remove_bg)
 
-        # -- View --
-        m_view = mb.addMenu("View")
-        m_view.addAction("Reset View",  self._on_reset_view)
-        m_view.addAction("Fit All",     self._view.fit_all)
+        self._m_view = mb.addMenu("")
+        self._act_reset_view = self._m_view.addAction("", self._on_reset_view)
+        self._act_fit_all = self._m_view.addAction("", self._view.fit_all)
 
-        # -- Item --
-        m_item = mb.addMenu("Item")
-        m_item.addAction("Add Rectangle...",
-                         lambda: self._on_add_item(ItemShape.RECT))
-        m_item.addAction("Add Ellipse...",
-                         lambda: self._on_add_item(ItemShape.ELLIPSE))
+        self._m_item = mb.addMenu("")
+        self._act_add_rect = self._m_item.addAction(
+            "", lambda: self._on_add_item(ItemShape.RECT))
+        self._act_add_ellipse = self._m_item.addAction(
+            "", lambda: self._on_add_item(ItemShape.ELLIPSE))
+
+    # -- retranslate (called on init and language switch) --------------------
+    def _retranslate(self) -> None:
+        """Apply current language strings to all UI widgets."""
+        self.setWindowTitle(tr("window_title"))
+
+        # Mode button
+        if self._btn_mode.isChecked():
+            self._btn_mode.setText(tr("design_mode"))
+        else:
+            self._btn_mode.setText(tr("animation_mode"))
+        self._btn_mode.setToolTip(tr("toggle_mode_tip"))
+
+        self._chk_snap.setText(tr("snap"))
+        self._chk_snap.setToolTip(tr("snap_tip"))
+
+        self._btn_lang.setText(tr("lang_toggle"))
+        self._btn_lang.setToolTip(tr("lang_toggle_tip"))
+        self._btn_reset.setText(tr("reset"))
+        self._btn_fit.setText(tr("fit"))
+
+        self._btn_load_bg.setText(tr("load_bg"))
+        self._btn_screenshot_bg.setText(tr("screenshot_bg"))
+        self._btn_screenshot_bg.setToolTip(tr("screenshot_bg_tip"))
+        self._btn_remove_bg.setText(tr("remove_bg"))
+        self._lbl_opacity.setText(tr("opacity"))
+        self._lbl_scale.setText(tr("scale"))
+
+        # Menu bar
+        self._m_edit.setTitle(tr("menu_edit"))
+        self._act_undo.setText(tr("undo"))
+        self._act_redo.setText(tr("redo"))
+
+        self._m_file.setTitle(tr("menu_file"))
+        self._act_load_bg.setText(tr("load_bg_image"))
+        self._act_screenshot_bg.setText(tr("screenshot_as_bg"))
+        self._act_remove_bg.setText(tr("remove_bg_image"))
+
+        self._m_view.setTitle(tr("menu_view"))
+        self._act_reset_view.setText(tr("reset_view"))
+        self._act_fit_all.setText(tr("fit_all"))
+
+        self._m_item.setTitle(tr("menu_item"))
+        self._act_add_rect.setText(tr("add_rectangle"))
+        self._act_add_ellipse.setText(tr("add_ellipse"))
 
     def _connect_signals(self) -> None:
         self._view.zoom_changed.connect(self._on_zoom_changed)
@@ -1439,13 +1619,20 @@ class DDPickerWindow(MayaQWidgetDockableMixin, QtWidgets.QMainWindow):
             self._scene.add_picker_item(label, nodes, x, y, w, h, shape=shp)
 
     # -- slots: mode --------------------------------------------------------
+    def _on_toggle_lang(self) -> None:
+        """Switch between English and Chinese."""
+        if get_language() == Lang.EN:
+            set_language(Lang.ZH)
+        else:
+            set_language(Lang.EN)
+
     def _on_toggle_mode(self, checked: bool) -> None:
         if checked:
             self._scene.set_mode(PickerMode.DESIGN)
-            self._btn_mode.setText("Design Mode")
+            self._btn_mode.setText(tr("design_mode"))
         else:
             self._scene.set_mode(PickerMode.ANIMATION)
-            self._btn_mode.setText("Animation Mode")
+            self._btn_mode.setText(tr("animation_mode"))
 
     def _on_snap_toggled(self, on: bool) -> None:
         for item in self._scene.picker_items():
@@ -1461,7 +1648,7 @@ class DDPickerWindow(MayaQWidgetDockableMixin, QtWidgets.QMainWindow):
     # -- slots: background --------------------------------------------------
     def _on_load_bg(self) -> None:
         path, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self, "Select Background Image", "",
+            self, tr("dlg_select_bg"), "",
             "Images (*.png *.jpg *.jpeg *.bmp *.tga);;All Files (*)")
         if path:
             bg = self._scene.set_background_image(path)
@@ -1475,7 +1662,7 @@ class DDPickerWindow(MayaQWidgetDockableMixin, QtWidgets.QMainWindow):
         import os
 
         # Choose source
-        sources = ["Active Viewport"]
+        sources = [tr("active_viewport")]
         # Check if playblast-based full panel capture is possible
         panels = cmds.getPanel(visiblePanels=True) or []
         model_panels = [p for p in panels if cmds.getPanel(typeOf=p) == "modelPanel"]
@@ -1485,8 +1672,8 @@ class DDPickerWindow(MayaQWidgetDockableMixin, QtWidgets.QMainWindow):
                 sources.append("{} ({})".format(mp, cam))
 
         source, ok = QtWidgets.QInputDialog.getItem(
-            self, "Screenshot Background",
-            "Capture source:",
+            self, tr("dlg_screenshot_title"),
+            tr("dlg_capture_source"),
             sources, 0, False)
         if not ok:
             return
@@ -1495,7 +1682,7 @@ class DDPickerWindow(MayaQWidgetDockableMixin, QtWidgets.QMainWindow):
         tmp_path = os.path.join(tmp_dir, "dd_picker_screenshot.png")
 
         try:
-            if source == "Active Viewport":
+            if source == tr("active_viewport"):
                 # Use playblast to capture the active viewport
                 panel = cmds.getPanel(withFocus=True)
                 if not panel or cmds.getPanel(typeOf=panel) != "modelPanel":
@@ -1504,7 +1691,7 @@ class DDPickerWindow(MayaQWidgetDockableMixin, QtWidgets.QMainWindow):
                         panel = model_panels[0]
                     else:
                         self._view._toast.show_message(
-                            "No model panel found")
+                            tr("warn_no_panel"))
                         return
                 cmds.setFocus(panel)
                 result = cmds.playblast(
@@ -1543,12 +1730,12 @@ class DDPickerWindow(MayaQWidgetDockableMixin, QtWidgets.QMainWindow):
                 )
 
             if not os.path.isfile(tmp_path):
-                self._view._toast.show_message("Screenshot failed")
+                self._view._toast.show_message(tr("warn_screenshot_fail"))
                 return
 
             pixmap = QtGui.QPixmap(tmp_path)
             if pixmap.isNull():
-                self._view._toast.show_message("Failed to load screenshot")
+                self._view._toast.show_message(tr("warn_screenshot_load"))
                 return
 
             bg = self._scene.set_background_pixmap(pixmap)
@@ -1563,7 +1750,7 @@ class DDPickerWindow(MayaQWidgetDockableMixin, QtWidgets.QMainWindow):
                 pass
 
         except Exception as exc:
-            self._view._toast.show_message("Screenshot error: {}".format(exc))
+            self._view._toast.show_message(tr("warn_screenshot_error") + str(exc))
             traceback.print_exc()
 
     def _on_remove_bg(self) -> None:
@@ -1582,11 +1769,11 @@ class DDPickerWindow(MayaQWidgetDockableMixin, QtWidgets.QMainWindow):
     # -- slots: items -------------------------------------------------------
     def _on_add_item(self, shape: ItemShape = ItemShape.RECT) -> None:
         label, ok = QtWidgets.QInputDialog.getText(
-            self, "Add Picker Item", "Label:")
+            self, tr("dlg_add_item"), tr("dlg_label"))
         if not ok or not label:
             return
         nodes_str, ok = QtWidgets.QInputDialog.getText(
-            self, "Maya Nodes", "Comma-separated Maya node names:")
+            self, tr("dlg_maya_nodes"), tr("dlg_maya_nodes_prompt"))
         if not ok:
             return
         nodes = [n.strip() for n in nodes_str.split(",") if n.strip()]
@@ -1599,6 +1786,8 @@ class DDPickerWindow(MayaQWidgetDockableMixin, QtWidgets.QMainWindow):
     # -- lifecycle ----------------------------------------------------------
     def dockCloseEventTriggered(self) -> None:
         _callback_mgr.unregister()
+        if self._retranslate in _lang_listeners:
+            _lang_listeners.remove(self._retranslate)
         DDPickerWindow._instance = None
         super().dockCloseEventTriggered()
 
@@ -1648,7 +1837,7 @@ def add_picker_item(
     """
     win = DDPickerWindow._instance
     if win is None:
-        cmds.warning("DD Picker: call dd_picker.show() first.")
+        cmds.warning(tr("warn_show_first"))
         return None
     return win._scene.add_picker_item(
         label, maya_nodes, x, y, w, h,
